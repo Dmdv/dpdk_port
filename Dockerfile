@@ -1,5 +1,5 @@
 # Build stage for DPDK
-FROM ubuntu:22.04 as dpdk-builder
+FROM ubuntu:22.04 AS dpdk-builder
 
 # Install build dependencies
 RUN apt-get update && \
@@ -46,31 +46,42 @@ RUN git clone https://github.com/DPDK/dpdk.git && \
     echo "Contents of /dpdk-install/usr/lib/aarch64-linux-gnu:" && \
     ls -la /dpdk-install/usr/lib/aarch64-linux-gnu/ && \
     echo "Contents of /dpdk-install/usr/lib/aarch64-linux-gnu/pkgconfig:" && \
-    ls -la /dpdk-install/usr/lib/aarch64-linux-gnu/pkgconfig/
+    ls -la /dpdk-install/usr/lib/aarch64-linux-gnu/pkgconfig/ && \
+    cd /dpdk-install/usr/lib/aarch64-linux-gnu && \
+    ln -sf libdpdk.so.22.11 libdpdk.so
 
 # Final stage
 FROM ubuntu:22.04
 
-# Install runtime dependencies
-RUN apt-get update && \
+RUN dpkg --add-architecture arm64 && \
+    apt-get update && \
     apt-get install -y \
-    libnuma1:arm64 \
-    libbsd0:arm64 \
-    libpcap0.8:arm64 \
-    curl \
-    ca-certificates \
-    gcc-aarch64-linux-gnu \
-    binutils-aarch64-linux-gnu \
+        libc6-dev:arm64 \
+        libnuma-dev:arm64 \
+        libbsd-dev:arm64 \
+        libpcap-dev:arm64 \
+        curl \
+        ca-certificates \
+        gcc-aarch64-linux-gnu \
+        binutils-aarch64-linux-gnu \
+        pkg-config \
+        qemu-user-static \
     && rm -rf /var/lib/apt/lists/*
 
-# Create necessary directories
-RUN mkdir -p /usr/lib/aarch64-linux-gnu/pkgconfig
-
-# Copy DPDK installation from builder
+# Copy DPDK installation explicitly
 COPY --from=dpdk-builder /dpdk-install/usr/lib/aarch64-linux-gnu/ /usr/lib/aarch64-linux-gnu/
 COPY --from=dpdk-builder /dpdk-install/usr/lib/aarch64-linux-gnu/pkgconfig/ /usr/lib/aarch64-linux-gnu/pkgconfig/
 
+# Verify explicitly (debugging)
+RUN ls -la /usr/lib/aarch64-linux-gnu/libdpdk*
+
 # Set up cross-compilation environment
+
+# Set linker and pkg-config environment explicitly
+ENV PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig
+ENV PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig
+ENV LD_LIBRARY_PATH=/usr/lib/aarch64-linux-gnu
+ENV LIBRARY_PATH=/usr/lib/aarch64-linux-gnu
 ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
 ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUNNER="qemu-aarch64 -L /usr/aarch64-linux-gnu"
 ENV RUSTFLAGS="-C linker=aarch64-linux-gnu-gcc -C link-arg=-L/usr/lib/aarch64-linux-gnu"
@@ -82,16 +93,19 @@ RUN ls -la /usr/lib/aarch64-linux-gnu/ && \
     ls -la /usr/lib/aarch64-linux-gnu/pkgconfig/
 
 # Set up workspace
+
 WORKDIR /app
 
 # Copy the Rust project
 COPY . .
 
-# Install Rust and cross-compilation toolchain
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && \
     . $HOME/.cargo/env && \
     rustup target add aarch64-unknown-linux-gnu
 
-# Build the Rust project
+# Explicitly verify linker paths and build
 RUN . $HOME/.cargo/env && \
-    cargo build --release --target aarch64-unknown-linux-gnu
+    echo "Linker directories:" && \
+    aarch64-linux-gnu-gcc -print-search-dirs && \
+    cargo rustc --release --target aarch64-unknown-linux-gnu -- \
+        -C link-args="-L/usr/lib/aarch64-linux-gnu"
