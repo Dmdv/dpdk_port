@@ -32,23 +32,24 @@ ENV RANLIB=aarch64-linux-gnu-ranlib
 WORKDIR /root
 RUN git clone https://github.com/DPDK/dpdk.git && \
     cd dpdk && \
+    git fetch --tags && \
     git checkout v22.11 && \
     git show -s --oneline && \
     rm -rf build /dpdk-install && \
     meson setup build \
-        -Dplatform=generic \
-        -Dprefix=/usr \
-        -Dlibdir=lib/aarch64-linux-gnu \
-        -Dexamples=all \
-        -Denable_docs=false \
-        -Dtests=false \
-        -Denable_drivers=net/*,bus/* \
-        -Ddefault_library=shared \
-        -Denable_kmods=false \
-        -Dmax_lcores=128 \
-        -Dmax_numa_nodes=4 \
-        -Dmax_ethports=32 \
-        --cross-file config/arm/arm64_armv8_linux_gcc && \
+    -Dplatform=generic \
+    -Dprefix=/usr \
+    -Dlibdir=lib/aarch64-linux-gnu \
+    -Dexamples=all \
+    -Denable_docs=false \
+    -Dtests=false \
+    -Denable_drivers=net/*,bus/* \
+    -Ddefault_library=shared \
+    -Denable_kmods=false \
+    -Dmax_lcores=128 \
+    -Dmax_numa_nodes=4 \
+    -Dmax_ethports=32 \
+    --cross-file config/arm/arm64_armv8_linux_gcc && \
     ninja -C build && \
     DESTDIR=/dpdk-install ninja -C build install && \
     cd /dpdk-install/usr/lib/aarch64-linux-gnu && \
