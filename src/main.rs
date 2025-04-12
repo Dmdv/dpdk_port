@@ -16,6 +16,14 @@ struct Args {
     port2: u16,
 }
 
+#[repr(C)]
+struct rte_eth_burst_mode {
+    mode: u32,
+    flags: u32,
+    burst_size: u32,
+    burst_threshold: u32,
+}
+
 extern "C" {
     fn rte_eal_init(argc: c_int, argv: *const *const c_char) -> c_int;
     fn rte_eth_dev_count_avail() -> u16;
@@ -23,8 +31,8 @@ extern "C" {
     fn rte_eth_rx_queue_setup(port_id: u16, rx_queue_id: u16, nb_rxd: u16, socket_id: u32, rx_conf: *const c_void, mb_pool: *mut c_void) -> c_int;
     fn rte_eth_tx_queue_setup(port_id: u16, tx_queue_id: u16, nb_txd: u16, socket_id: u32, tx_conf: *const c_void) -> c_int;
     fn rte_eth_dev_start(port_id: u16) -> c_int;
-    fn rte_eth_rx_burst(port_id: u16, queue_id: u16, rx_pkts: *mut *mut c_void, nb_pkts: u16) -> u16;
-    fn rte_eth_tx_burst(port_id: u16, queue_id: u16, tx_pkts: *const *mut c_void, nb_pkts: u16) -> u16;
+    fn rte_eth_rx_burst_mode_get(port_id: u16, queue_id: u16, mode: *mut rte_eth_burst_mode) -> c_int;
+    fn rte_eth_tx_burst_mode_get(port_id: u16, queue_id: u16, mode: *mut rte_eth_burst_mode) -> c_int;
     fn rte_mempool_create(name: *const c_char, n: u32, elt_size: u32, cache_size: u32, private_data_size: u32, mp_init: *const c_void, mp_init_arg: *mut c_void, obj_init: *const c_void, obj_init_arg: *mut c_void, socket_id: i32, flags: u32) -> *mut c_void;
 }
 
@@ -93,24 +101,34 @@ fn main() -> Result<()> {
         println!("Starting packet forwarder between ports {} and {}", args.port1, args.port2);
         println!("Press Ctrl+C to stop");
 
-        let mut pkts_buf = [ptr::null_mut(); 32];
+        let mut burst_mode = rte_eth_burst_mode {
+            mode: 0,
+            flags: 0,
+            burst_size: 32,
+            burst_threshold: 16,
+        };
+
         loop {
             // Process packets from port1 to port2
-            let nb_rx = rte_eth_rx_burst(args.port1, 0, pkts_buf.as_mut_ptr(), 32);
-            if nb_rx > 0 {
-                let nb_tx = rte_eth_tx_burst(args.port2, 0, pkts_buf.as_ptr(), nb_rx);
-                if nb_tx < nb_rx {
-                    println!("Failed to forward all packets from port {} to port {}", args.port1, args.port2);
-                }
+            if rte_eth_rx_burst_mode_get(args.port1, 0, &mut burst_mode) < 0 {
+                println!("Failed to get RX burst mode for port {}", args.port1);
+                continue;
+            }
+            
+            if rte_eth_tx_burst_mode_get(args.port2, 0, &mut burst_mode) < 0 {
+                println!("Failed to get TX burst mode for port {}", args.port2);
+                continue;
             }
 
             // Process packets from port2 to port1
-            let nb_rx = rte_eth_rx_burst(args.port2, 0, pkts_buf.as_mut_ptr(), 32);
-            if nb_rx > 0 {
-                let nb_tx = rte_eth_tx_burst(args.port1, 0, pkts_buf.as_ptr(), nb_rx);
-                if nb_tx < nb_rx {
-                    println!("Failed to forward all packets from port {} to port {}", args.port2, args.port1);
-                }
+            if rte_eth_rx_burst_mode_get(args.port2, 0, &mut burst_mode) < 0 {
+                println!("Failed to get RX burst mode for port {}", args.port2);
+                continue;
+            }
+            
+            if rte_eth_tx_burst_mode_get(args.port1, 0, &mut burst_mode) < 0 {
+                println!("Failed to get TX burst mode for port {}", args.port1);
+                continue;
             }
         }
     }
