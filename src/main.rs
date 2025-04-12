@@ -131,48 +131,5 @@ fn main() -> Result<()> {
                 continue;
             }
         }
-
-        //     // Example port and queue IDs
-        //     let port_id: u16 = 0;
-        //     let queue_id: u16 = 0;
-        //
-        //     // Buffer to hold the burst mode string
-        //     let mut mode_buffer: [c_char; 128] = [0; 128];
-        //
-        //     unsafe {
-        //         // Call rte_eth_rx_burst_mode_get to get the RX burst mode
-        //         let ret = rte_eth_rx_burst_mode_get(
-        //             port_id,
-        //             queue_id,
-        //             mode_buffer.as_mut_ptr(),
-        //             mode_buffer.len(),
-        //         );
-        //
-        //         if ret == 0 {
-        //             let mode = std::ffi::CStr::from_ptr(mode_buffer.as_ptr())
-        //                 .to_string_lossy()
-        //                 .into_owned();
-        //             println!("RX Burst Mode: {}", mode);
-        //         } else {
-        //             println!("Failed to get RX burst mode");
-        //         }
-        //
-        //         // Call rte_eth_tx_burst_mode_get to get the TX burst mode
-        //         let ret = rte_eth_tx_burst_mode_get(
-        //             port_id,
-        //             queue_id,
-        //             mode_buffer.as_mut_ptr(),
-        //             mode_buffer.len(),
-        //         );
-        //
-        //         if ret == 0 {
-        //             let mode = std::ffi::CStr::from_ptr(mode_buffer.as_ptr())
-        //                 .to_string_lossy()
-        //                 .into_owned();
-        //             println!("TX Burst Mode: {}", mode);
-        //         } else {
-        //             println!("Failed to get TX burst mode");
-        //         }
-        //     }
     }
 }
