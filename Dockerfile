@@ -40,13 +40,6 @@ RUN git clone https://github.com/DPDK/dpdk.git && \
     --cross-file config/arm/arm64_armv8_linux_gcc && \
     ninja -C build && \
     DESTDIR=/dpdk-install ninja -C build install && \
-    # Verify installation
-    echo "DPDK installation directory structure:" && \
-    find /dpdk-install -type f -name "*.so" -o -name "*.pc" | sort && \
-    echo "Contents of /dpdk-install/usr/lib/aarch64-linux-gnu:" && \
-    ls -la /dpdk-install/usr/lib/aarch64-linux-gnu/ && \
-    echo "Contents of /dpdk-install/usr/lib/aarch64-linux-gnu/pkgconfig:" && \
-    ls -la /dpdk-install/usr/lib/aarch64-linux-gnu/pkgconfig/ && \
     cd /dpdk-install/usr/lib/aarch64-linux-gnu && \
     ln -sf libdpdk.so.22.11 libdpdk.so
 
@@ -68,12 +61,9 @@ RUN dpkg --add-architecture arm64 && \
         qemu-user-static \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy DPDK installation explicitly
+# Copy DPDK installation
 COPY --from=dpdk-builder /dpdk-install/usr/lib/aarch64-linux-gnu/ /usr/lib/aarch64-linux-gnu/
 COPY --from=dpdk-builder /dpdk-install/usr/lib/aarch64-linux-gnu/pkgconfig/ /usr/lib/aarch64-linux-gnu/pkgconfig/
-
-# Verify explicitly (debugging)
-RUN ls -la /usr/lib/aarch64-linux-gnu/libdpdk*
 
 # Set up cross-compilation environment
 
@@ -85,14 +75,6 @@ ENV LIBRARY_PATH=/usr/lib/aarch64-linux-gnu
 ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
 ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUNNER="qemu-aarch64 -L /usr/aarch64-linux-gnu"
 ENV RUSTFLAGS="-C linker=aarch64-linux-gnu-gcc -C link-arg=-L/usr/lib/aarch64-linux-gnu"
-ENV PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig
-ENV LD_LIBRARY_PATH=/usr/lib/aarch64-linux-gnu
-
-# Verify library installation
-RUN ls -la /usr/lib/aarch64-linux-gnu/ && \
-    ls -la /usr/lib/aarch64-linux-gnu/pkgconfig/
-
-# Set up workspace
 
 WORKDIR /app
 
@@ -103,9 +85,6 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && \
     . $HOME/.cargo/env && \
     rustup target add aarch64-unknown-linux-gnu
 
-# Explicitly verify linker paths and build
+# Build the project
 RUN . $HOME/.cargo/env && \
-    echo "Linker directories:" && \
-    aarch64-linux-gnu-gcc -print-search-dirs && \
-    cargo rustc --release --target aarch64-unknown-linux-gnu -- \
-        -C link-args="-L/usr/lib/aarch64-linux-gnu"
+    cargo build --release --target aarch64-unknown-linux-gnu
