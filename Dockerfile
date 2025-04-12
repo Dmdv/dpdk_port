@@ -37,11 +37,29 @@ RUN git clone https://github.com/DPDK/dpdk.git && \
     -Dplatform=generic \
     -Dprefix=/usr \
     -Dlibdir=lib/aarch64-linux-gnu \
+    -Dexamples=all \
+    -Denable_docs=false \
+    -Dtests=false \
+    -Ddisable_drivers=*/* \
+    -Denable_drivers=net/*,bus/* \
+    -Ddefault_library=shared \
     --cross-file config/arm/arm64_armv8_linux_gcc && \
     ninja -C build && \
     DESTDIR=/dpdk-install ninja -C build install && \
     cd /dpdk-install/usr/lib/aarch64-linux-gnu && \
-    ln -sf libdpdk.so.22.11 libdpdk.so
+    ln -sf libdpdk.so.22.11 libdpdk.so && \
+    # Verify the installation
+    ls -la && \
+    # Create pkg-config file
+    echo "prefix=/usr" > dpdk.pc && \
+    echo "libdir=\${prefix}/lib/aarch64-linux-gnu" >> dpdk.pc && \
+    echo "includedir=\${prefix}/include" >> dpdk.pc && \
+    echo "" >> dpdk.pc && \
+    echo "Name: dpdk" >> dpdk.pc && \
+    echo "Description: DPDK" >> dpdk.pc && \
+    echo "Version: 22.11" >> dpdk.pc && \
+    echo "Libs: -L\${libdir} -lrte_eal -lrte_mempool -lrte_ring -lrte_mbuf -lrte_net -lrte_ethdev -lrte_pci -lrte_bus_pci -lrte_kvargs -lrte_hash -lrte_timer -lrte_cmdline" >> dpdk.pc && \
+    echo "Cflags: -I\${includedir}" >> dpdk.pc
 
 # Final stage
 FROM ubuntu:22.04
@@ -64,10 +82,9 @@ RUN dpkg --add-architecture arm64 && \
 # Copy DPDK installation
 COPY --from=dpdk-builder /dpdk-install/usr/lib/aarch64-linux-gnu/ /usr/lib/aarch64-linux-gnu/
 COPY --from=dpdk-builder /dpdk-install/usr/lib/aarch64-linux-gnu/pkgconfig/ /usr/lib/aarch64-linux-gnu/pkgconfig/
+COPY --from=dpdk-builder /dpdk-install/usr/lib/aarch64-linux-gnu/dpdk.pc /usr/lib/aarch64-linux-gnu/pkgconfig/
 
 # Set up cross-compilation environment
-
-# Set linker and pkg-config environment explicitly
 ENV PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig
 ENV PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig
 ENV LD_LIBRARY_PATH=/usr/lib/aarch64-linux-gnu
