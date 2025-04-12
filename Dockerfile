@@ -42,6 +42,10 @@ RUN git clone https://github.com/DPDK/dpdk.git && \
     -Dtests=false \
     -Denable_drivers=net/*,bus/* \
     -Ddefault_library=shared \
+    -Denable_kmods=false \
+    -Dmax_lcores=128 \
+    -Dmax_numa_nodes=4 \
+    -Dmax_ethports=32 \
     --cross-file config/arm/arm64_armv8_linux_gcc && \
     ninja -C build && \
     DESTDIR=/dpdk-install ninja -C build install && \
@@ -75,14 +79,22 @@ RUN dpkg --add-architecture arm64 && \
         binutils-aarch64-linux-gnu \
         pkg-config \
         qemu-user-static && \
-    rm -rf /var/lib/apt/lists/*
+        rm -rf /var/lib/apt/lists/*
 
 # Copy DPDK installation
 COPY --from=dpdk-builder /dpdk-install/usr/lib/aarch64-linux-gnu/ /usr/lib/aarch64-linux-gnu/
 COPY --from=dpdk-builder /dpdk-install/usr/lib/aarch64-linux-gnu/pkgconfig/ /usr/lib/aarch64-linux-gnu/pkgconfig/
 COPY --from=dpdk-builder /dpdk-install/usr/lib/aarch64-linux-gnu/dpdk.pc /usr/lib/aarch64-linux-gnu/pkgconfig/
 
+# Check for the presence of librte_ethdev.so
+RUN ls /usr/lib/aarch64-linux-gnu | grep librte_ethdev || echo "librte_ethdev.so not found"
+
+RUN nm -D /usr/lib/aarch64-linux-gnu/librte_ethdev.so | grep rte_eth_rx_burst
+RUN nm -D /usr/lib/aarch64-linux-gnu/librte_ethdev.so | grep rte_eth_tx_burst
+RUN strings /usr/lib/aarch64-linux-gnu/librte_ethdev.so | grep DPDK
+
 # Set up cross-compilation environment
+ENV PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig
 ENV PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig
 ENV LD_LIBRARY_PATH=/usr/lib/aarch64-linux-gnu
 ENV LIBRARY_PATH=/usr/lib/aarch64-linux-gnu
