@@ -17,8 +17,8 @@ RUN apt-get update && \
     libpcap-dev \
     libelf-dev \
     gcc-aarch64-linux-gnu \
-    binutils-aarch64-linux-gnu \
-    && rm -rf /var/lib/apt/lists/*
+    binutils-aarch64-linux-gnu && \
+    rm -rf /var/lib/apt/lists/*
 
 # Set DPDK environment variables
 ENV RTE_SDK=/root/dpdk
@@ -48,8 +48,7 @@ RUN git clone https://github.com/DPDK/dpdk.git && \
     DESTDIR=/dpdk-install ninja -C build install && \
     cd /dpdk-install/usr/lib/aarch64-linux-gnu && \
     ln -sf libdpdk.so.22.11 libdpdk.so && \
-    # Verify the installation
-    ls -la && \
+    mkdir -p /usr/lib/aarch64-linux-gnu/pkgconfig && \
     # Create pkg-config file
     echo "prefix=/usr" > dpdk.pc && \
     echo "libdir=\${prefix}/lib/aarch64-linux-gnu" >> dpdk.pc && \
@@ -76,8 +75,8 @@ RUN dpkg --add-architecture arm64 && \
         gcc-aarch64-linux-gnu \
         binutils-aarch64-linux-gnu \
         pkg-config \
-        qemu-user-static \
-    && rm -rf /var/lib/apt/lists/*
+        qemu-user-static && \
+    rm -rf /var/lib/apt/lists/*
 
 # Copy DPDK installation
 COPY --from=dpdk-builder /dpdk-install/usr/lib/aarch64-linux-gnu/ /usr/lib/aarch64-linux-gnu/
@@ -85,7 +84,6 @@ COPY --from=dpdk-builder /dpdk-install/usr/lib/aarch64-linux-gnu/pkgconfig/ /usr
 COPY --from=dpdk-builder /dpdk-install/usr/lib/aarch64-linux-gnu/dpdk.pc /usr/lib/aarch64-linux-gnu/pkgconfig/
 
 # Set up cross-compilation environment
-ENV PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig
 ENV PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig
 ENV LD_LIBRARY_PATH=/usr/lib/aarch64-linux-gnu
 ENV LIBRARY_PATH=/usr/lib/aarch64-linux-gnu
@@ -98,7 +96,7 @@ WORKDIR /app
 # Copy the Rust project
 COPY . .
 
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && \
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable && \
     . $HOME/.cargo/env && \
     rustup target add aarch64-unknown-linux-gnu
 
