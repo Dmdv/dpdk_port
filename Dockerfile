@@ -40,7 +40,6 @@ RUN git clone https://github.com/DPDK/dpdk.git && \
     -Dexamples=all \
     -Denable_docs=false \
     -Dtests=false \
-    -Ddisable_drivers=*/* \
     -Denable_drivers=net/*,bus/* \
     -Ddefault_library=shared \
     --cross-file config/arm/arm64_armv8_linux_gcc && \
