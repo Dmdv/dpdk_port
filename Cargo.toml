@@ -9,6 +9,7 @@ edition = "2021"
 libc = "0.2.171"
 anyhow = "1.0.97"
 clap = { version = "4.4", features = ["derive"] }
+ctrlc = "3.4"
 
 [build-dependencies]
 pkg-config = "0.3.32"

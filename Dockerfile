@@ -110,10 +110,15 @@ WORKDIR /app
 # Copy the Rust project
 COPY . .
 
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable && \
+# Install Rust and cross-compilation target
+RUN apt-get update && \
+    apt-get install -y file && \
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable && \
     . $HOME/.cargo/env && \
     rustup target add aarch64-unknown-linux-gnu
 
 # Build the project
 RUN . $HOME/.cargo/env && \
-    cargo build --release --target aarch64-unknown-linux-gnu
+    cargo build --release --target aarch64-unknown-linux-gnu && \
+    # Verify the binary
+    file target/aarch64-unknown-linux-gnu/release/dpdk-tutorial
