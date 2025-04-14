@@ -91,9 +91,3 @@ This implementation achieves high performance through:
 ## 📝 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🙏 Acknowledgments
-
-- DPDK project for providing the high-performance networking framework
-- Rust community for the excellent language and ecosystem
-- All contributors and users of the project 
