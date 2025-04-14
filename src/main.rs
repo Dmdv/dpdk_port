@@ -41,6 +41,12 @@ struct rte_eth_burst_mode {
     burst_threshold: u32,
 }
 
+#[repr(C)]
+struct rte_pktmbuf_pool_private {
+    mbuf_data_room_size: u16,
+    mbuf_priv_size: u16,
+}
+
 extern "C" {
     fn rte_eal_init(argc: c_int, argv: *const *const c_char) -> c_int;
     fn rte_eth_dev_count_avail() -> u16;
@@ -51,7 +57,10 @@ extern "C" {
     fn rte_eth_rx_burst_mode_get(port_id: u16, queue_id: u16, mode: *mut rte_eth_burst_mode) -> c_int;
     fn rte_eth_tx_burst_mode_get(port_id: u16, queue_id: u16, mode: *mut rte_eth_burst_mode) -> c_int;
     fn rte_mempool_create(name: *const c_char, n: u32, elt_size: u32, cache_size: u32, private_data_size: u32, mp_init: *const c_void, mp_init_arg: *mut c_void, obj_init: *const c_void, obj_init_arg: *mut c_void, socket_id: i32, flags: u32) -> *mut c_void;
-    fn rte_mempool_free(mp: *mut c_void);
+    fn rte_eth_dev_stop(port_id: u16) -> c_int;
+    fn rte_eth_dev_close(port_id: u16) -> c_int;
+    fn rte_pktmbuf_pool_init(mp: *mut c_void, arg: *mut c_void) -> c_int;
+    fn rte_pktmbuf_init(mp: *mut c_void, arg: *mut c_void) -> c_int;
 }
 
 #[derive(Default)]
@@ -172,16 +181,16 @@ fn main() -> Result<()> {
         let pool_name = CString::new("mbuf_pool").unwrap();
         let mbuf_pool = rte_mempool_create(
             pool_name.as_ptr(),
-            8192,
-            2048,
-            256,
-            0,
-            ptr::null(),
+            8192,      // NUM_MBUFS
+            2048,      // MBUF_SIZE
+            256,       // MBUF_CACHE_SIZE
+            std::mem::size_of::<rte_pktmbuf_pool_private>() as u32,
+            rte_pktmbuf_pool_init as *const c_void,
             ptr::null_mut(),
-            ptr::null(),
+            rte_pktmbuf_init as *const c_void,
             ptr::null_mut(),
-            -1,
-            0,
+            -1,        // socket_id
+            0          // flags
         );
         if mbuf_pool.is_null() {
             return Err(anyhow::anyhow!("Failed to create memory pool"));
